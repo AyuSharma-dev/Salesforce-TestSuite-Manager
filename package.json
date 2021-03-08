@@ -10,14 +10,14 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:salesforce-testsuite-generator.helloWorld"
+		"onCommand:salesforce-testsuite-generator.createtestsuite"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
 		"commands": [
 			{
-				"command": "salesforce-testsuite-generator.helloWorld",
-				"title": "Hello World"
+				"command": "salesforce-testsuite-generator.createtestsuite",
+				"title": "TSM: Generate Test Suite."
 			}
 		]
 	},
