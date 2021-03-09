@@ -5,19 +5,10 @@ import * as vscode from 'vscode';
 const { exec } = require( 'child_process' );
 const fs = require('fs') 
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	// This line of code will only be executed once when your extension is activated
-
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
 	let disposable = vscode.commands.registerCommand('salesforce-testsuite-generator.createtestsuite', async() => {
-		// The code you place here will be executed every time your command is executed
-
-		// Display a message box to the user
+		
 		let tsInput = await vscode.window.showInputBox({ placeHolder: 'Enter desired name.' });
 		
 		if( tsInput ){
@@ -521,7 +512,7 @@ function getWebviewContent( content, itemName ) {
 		}
 	</script>
 		<div class='checkboxgroup' >
-		<p style="font-size: 16px;" >Select Test Classes for Suite.</p>
+		<p style="font-size: 16px;" >Select Items below:</p>
 			${content}
 		</div>
 		<br/>
