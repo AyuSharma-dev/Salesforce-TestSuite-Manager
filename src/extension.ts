@@ -9,7 +9,6 @@ const fs = require('fs')
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 
 	// The command has been defined in the package.json file
@@ -23,10 +22,9 @@ export function activate(context: vscode.ExtensionContext) {
 		
 		if( tsInput ){
 			
-			console.log( 'tsInput-->'+JSON.stringify( tsInput ) );
 			var testSuiteName = tsInput;
-			var items = [];
-			let currentPanel: vscode.WebviewPanel | undefined = undefined;
+			var items: String[] = [];
+			//let currentPanel: vscode.WebviewPanel | undefined = undefined;
 			let foo = exec("sfdx force:data:soql:query -q \"Select Name From ApexClass Where Name Like '%test%'\"",{
 				maxBuffer: 1024 * 1024 * 6,
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -55,98 +53,12 @@ export function activate(context: vscode.ExtensionContext) {
 			});
 
 			var dirPath = vscode.workspace.workspaceFolders[0].uri.fsPath+'\\force-app\\main\\default\\testSuites';
-			var fullPath = '';
 			foo.on('close', (data: any)=> {
-				getFilteredData( items ).then(function ( realData ) {
+				getFilteredData( items ).then( function( realData ) {
 					if( realData.length > 5 ){
-						console.log('items-->'+realData);
 						try{
 							getListOfElements(realData).then(function( content ){
-								currentPanel = vscode.window.createWebviewPanel(
-									'classselector',
-									'TSM: Class Selector',
-									vscode.ViewColumn.One,
-									{
-										enableScripts: true
-									}
-								);
-								currentPanel.webview.html = getWebviewContent(realData, content);
-
-								currentPanel.webview.onDidReceiveMessage(
-				
-									message => {
-										console.log('message-->'+message.command);
-									switch (message.command) {
-										case 'submit':
-										vscode.window.withProgress({
-											location: vscode.ProgressLocation.Notification,
-											title: "Creating and Deploying your Test Suite.",
-											cancellable: false
-											}, () => {
-												vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-											var p = new Promise(resolve => {
-												var selectedClasses = message.text.split(' ');
-												selectedClasses.pop();
-												console.log( 'selectedClasses-->'+selectedClasses );
-												console.log('path-->'+vscode.workspace.workspaceFolders[0].uri.fsPath);
-												createTestSuiteContent( selectedClasses ).then(function( fileData ){
-													if (!fs.existsSync(dirPath)){
-														fs.mkdirSync(dirPath);
-													}
-													fullPath = dirPath+'\\'+testSuiteName+'.testSuite-meta.xml';
-													fs.writeFile(fullPath, fileData, (err) => { 
-				
-														// In case of a error throw err. 
-														if (err) throw err; 
-														else{
-															deployTsToOrg( fullPath ).then(async function( Code ){
-																console.log( 'Code received-->'+Code );
-																if( Code == 0 ){
-																	resolve( true );
-																}
-																else{
-																	vscode.window.showErrorMessage('Error Occurred when Creating Test Suite.');
-																}
-																resolve( false );
-															});
-														}
-													}) 
-												});
-											});
-											return p;
-										}).then( async function( code ) {
-											if( code ){
-												var choice = await vscode.window.showInformationMessage("Test Suite successfully created. Do you want to Run it?", "Yes", "Not now");
-												if (choice === "Yes") {
-													vscode.window.withProgress({
-														location: vscode.ProgressLocation.Notification,
-														title: "Running Test Suite.",
-														cancellable: false
-														}, () => {
-														var p = new Promise(resolve => {
-															runTestSuit( testSuiteName ).then( function( returnValues ) {
-																if( returnValues[0] == 0 ){
-																	vscode.window.showInformationMessage("Test Suite Ran successfully.");
-																}
-																else{
-																	vscode.window.showErrorMessage('Error Occurred when running Test Suite.');
-																}
-																const outputChannel = vscode.window.createOutputChannel('Test Suite Manager');
-																outputChannel.append( returnValues[1] );
-																outputChannel.show();	
-																return resolve(true);
-															} );
-														})
-														return p;
-													});
-												}
-											}
-										});
-									}
-									},
-									undefined,
-									context.subscriptions
-								);
+								createWebView( content, 'submit_classes', dirPath, testSuiteName );
 							});
 							
 						}
@@ -158,15 +70,106 @@ export function activate(context: vscode.ExtensionContext) {
 				});
 				
 			});
-		
-			foo.stderr.on("data",(data : any)=> {
-				console.log('stderr: ' + data);
-				
-			});
 		}
 	});
+
+	let exportTestSuites = vscode.commands.registerCommand('salesforce-testsuite-generator.exporttestsuites', async() => {
+		getAllTestSuiteNames( true ).then(function( items ){
+			getListOfElements(items).then(function( content ){
+				createWebView( content, 'submit_ts', '', '' );
+			});
+		});
+	});
+
+	let runTestSuite = vscode.commands.registerCommand('salesforce-testsuite-generator.runtestsuite', async() => {
+		getAllTestSuiteNames( false );
+	});
+
 	context.subscriptions.push(disposable);
+	context.subscriptions.push(runTestSuite);
+	context.subscriptions.push(exportTestSuites);
 	
+}
+
+function createWebView( content, command:String, dirPath:String, testSuiteName:String ){
+
+	let currentPanel: vscode.WebviewPanel | undefined = undefined;
+	var tabName, tabLabel;
+	if( command == 'submit_classes' ){
+		tabName = 'classselector';
+		tabLabel = 'TSM: Class Selector';
+	}
+	else{
+		tabName = 'tsselector';
+		tabLabel = 'TSM: Test Suite Selector';
+	}
+	currentPanel = vscode.window.createWebviewPanel(
+		tabName,
+		tabLabel,
+		vscode.ViewColumn.One,
+		{
+			enableScripts: true
+		}
+	);
+	currentPanel.webview.html = getWebviewContent(content, command);
+
+	currentPanel.webview.onDidReceiveMessage(
+
+		message => {
+			var selectedItems = message.text.split(' ');
+			selectedItems.pop();
+			switch (message.command) {
+				case 'submit_classes':
+					return createAndDeployTS( selectedItems, dirPath, testSuiteName );
+				case 'submit_ts':
+					return exportAllTestSuites( selectedItems );
+			}
+		},
+		undefined
+	);
+
+}
+
+function createAndDeployTS( selectedClasses:String[], dirPath:String, testSuiteName:String ){
+	vscode.window.withProgress({
+		location: vscode.ProgressLocation.Notification,
+		title: "Creating and Deploying your Test Suite.",
+		cancellable: false
+		}, () => {
+			vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+		var p = new Promise(resolve => {
+			createTestSuiteContent( selectedClasses ).then(function( fileData ){
+				if (!fs.existsSync(dirPath)){
+					fs.mkdirSync(dirPath);
+				}
+				var fullPath = dirPath+'\\'+testSuiteName+'.testSuite-meta.xml';
+				fs.writeFile(fullPath, fileData, (err) => { 
+
+					// In case of a error throw err. 
+					if (err) throw err; 
+					else{
+						deployTsToOrg( fullPath ).then(async function( Code ){
+							if( Code == 0 ){
+								resolve( true );
+							}
+							else{
+								vscode.window.showErrorMessage('Error Occurred when Creating Test Suite.');
+							}
+							resolve( false );
+						});
+					}
+				}) 
+			});
+		});
+		return p;
+	}).then( async function( code ) {
+		if( code ){
+			var choice = await vscode.window.showInformationMessage("Test Suite successfully created. Do you want to Run it?", "Yes", "Not now");
+			if (choice === "Yes") {
+				return startTestSuiteRun( testSuiteName );
+			}
+		}
+	});
 }
 
 function getFilteredData( items ){
@@ -195,44 +198,32 @@ function getListOfElements( items ){
 	});
 }
 
-function createTestSuiteContent( selectedClasses ){
+function createTestSuiteContent( selectedClasses:String[] ){
 	var dataToReturn = '<?xml version="1.0" encoding="UTF-8"?>\n';
 	dataToReturn += '<ApexTestSuite xmlns="http://soap.sforce.com/2006/04/metadata">\n';
 	return new Promise((resolve, reject) => {
 		setTimeout(() => {
 		for( var i=0; i<selectedClasses.length; i++ ){
-			dataToReturn += '	<testClassName>'+selectedClasses[i].replaceAll('\n','')+'</testClassName>\n';
+			dataToReturn += '	<testClassName>'+selectedClasses[i].replace(/(?:\r\n|\r|\n)/g,'')+'</testClassName>\n';
 		}
 		dataToReturn += '</ApexTestSuite>';
-		console.log( 'dataReturn-->'+dataToReturn );
 		resolve(dataToReturn);
 	},500);
 	});
 
 }
 
-function deployTsToOrg( dir ){
+function deployTsToOrg( dir:String ){
 
 	return new Promise((resolve, reject) => {
 		setTimeout(() => {
-			console.log('dirBefore-->'+dir);
 			dir = "\""+dir+"\"";
-			console.log('dirAfter-->'+dir);
 			let foo = exec("sfdx force:source:deploy --json -p "+dir,{
 				maxBuffer: 1024 * 1024 * 6,
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 			});
 
-			foo.stdout.on("data",(dataArg : any)=> {
-				console.log( 'stdout-->'+dataArg );
-			});
-
-			foo.stderr.on("data",(data : any)=> {
-				console.log('stderr:Deploying ' + data);
-			});
-
 			foo.on('close', (Code: any)=> {
-				console.log('code-->'+Code);
 				resolve(Code);
 			});
 		},500);
@@ -240,35 +231,182 @@ function deployTsToOrg( dir ){
 
 }
 
-function runTestSuit(dir) {
+function startTestSuiteRun( testSuiteName ){
+
+	vscode.window.withProgress({
+		location: vscode.ProgressLocation.Notification,
+		title: "Running Test Suite.",
+		cancellable: false
+		}, () => {
+			var outputMsg:String = '';
+		var p = new Promise(resolve => {
+			runTestSuit( testSuiteName ).then( function( returnValues ) {
+				if( returnValues[0] == 0 ){
+					vscode.window.showInformationMessage("Test Suite Ran successfully.");
+				}
+				else{
+					vscode.window.showErrorMessage('Error Occurred when running Test Suite.');
+				}
+				const outputChannel = vscode.window.createOutputChannel('Test Suite Manager');
+				if( outputMsg == '' ){
+					outputChannel.append( returnValues[1] );
+				}
+				outputChannel.show();	
+				return resolve(true);
+			} );
+		})
+		return p;
+	});
+
+}
+
+function runTestSuit(dir:String){
 	return new Promise((resolve, reject) => {
 		setTimeout(() => {
 			var outPutRes = '';
 			dir = "\""+dir+"\"";
-			console.log('command to run-->'+"sfdx force:apex:test:run -s "+dir+" -c -r human");
 			let foo = exec("sfdx force:apex:test:run -s "+dir+" -c -r human",{
 				maxBuffer: 1024 * 1024 * 6,
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 			});
 
 			foo.stdout.on("data",(dataArg : any)=> {
-				console.log( 'stdout-->'+dataArg );
 				outPutRes += dataArg;
 			});
 
-			foo.stderr.on("data",(data : any)=> {
-				console.log('stderr:Deploying ' + data);
-			});
-
 			foo.on('close', (Code: any)=> {
-				console.log('code-->'+Code);
-				resolve([Code,outPutRes]);
+				const dataToSend = [ Code,outPutRes ];
+				resolve( dataToSend );
 			});
 		},500);
 	});
 }
 
-function getWebviewContent( items, content ) {
+function getAllTestSuiteNames( onlyGetNames:Boolean ){
+	let allTestSuites: vscode.QuickPickItem[] = [];
+
+	return new Promise(resolve => {
+		let foo = exec("sfdx force:data:soql:query -q \"Select TestSuiteName From ApexTestSuite ORDER BY TestSuiteName\"",{
+			maxBuffer: 1024 * 1024 * 6,
+			cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
+		});
+
+		foo.stdout.on("data",(dataArg : any)=> {
+			try{
+				allTestSuites = allTestSuites.concat( dataArg.split('\n') );
+			}
+			catch( err ){
+				console.log( 'err-->'+err.message );
+			}
+		});
+
+		vscode.window.withProgress({
+			location: vscode.ProgressLocation.Notification,
+			title: "Getting All TestSuite Names.",
+			cancellable: false
+			}, () => {
+			var p = new Promise(resolve => {
+				foo.on('close', (data: any)=> {
+					resolve( true );
+				});
+			});
+			return p;
+		});
+
+		foo.on('close', (data: any)=> {
+			
+			getFilteredData( allTestSuites ).then(function ( realData ) {
+				return realData;
+			}).then( async function( realData ) {
+				if( onlyGetNames ){
+					return resolve(realData);
+				}
+				vscode.window.showQuickPick(realData).then(selection => {
+					if (!selection) {
+						return;
+					}
+					return resolve(startTestSuiteRun( selection ));
+				});
+			});
+		});
+	});
+
+	
+}
+
+function exportAllTestSuites( selectedItems ){
+	vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+	vscode.window.withProgress({
+		location: vscode.ProgressLocation.Notification,
+		title: "Retrieving Test Suites.",
+		cancellable: false
+		}, () => {
+		var p = new Promise(resolve => {
+			getPackageXml( selectedItems ).then( function( fileData ) {
+				const pathForTestXML = vscode.workspace.workspaceFolders[0].uri.fsPath+'\\testPackage.xml';
+				fs.writeFile(pathForTestXML, fileData, (err) => { 
+
+					// In case of a error throw err. 
+					if (err) throw err; 
+					else{
+						retrieveSource(pathForTestXML).then(async function( Code ){
+							if( Code == 0 ){
+								vscode.window.showInformationMessage( 'Test Suites retrieved Successfully.' );
+							}
+							else{
+								vscode.window.showErrorMessage('Error Occurred when retrieving Test Suites.');
+							}
+							fs.unlinkSync(pathForTestXML);
+							return resolve(true);
+						});
+					}
+				}) 
+			});
+		});
+		return p;
+	});
+	
+
+}
+
+function getPackageXml( selectedItems ){
+
+	return new Promise(resolve => {
+		var fileData = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+		fileData+= '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
+		fileData+= '	<types>\n';
+		for( var i=0; i<selectedItems.length; i++ ){
+			fileData += '		<members>'+selectedItems[i]+'</members>\n';
+		}
+		fileData += '		<name>ApexTestSuite</name>\n';
+		fileData += '	</types>\n';
+		fileData += '	<version>50.0</version>\n';
+		fileData += '</Package>';
+
+		return resolve(fileData);
+	});
+	
+}
+
+function retrieveSource( dir ){
+
+	return new Promise((resolve, reject) => {
+		setTimeout(() => {
+			dir = "\""+dir+"\"";
+			let foo = exec("sfdx force:source:retrieve -x "+dir,{
+				maxBuffer: 1024 * 1024 * 6,
+				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
+			});
+
+			foo.on('close', (Code: any)=> {
+				resolve(Code);
+			});
+		},500);
+	});
+
+}
+
+function getWebviewContent( content, itemName ) {
 	return `<!DOCTYPE html>
   	<html lang="en">
 	<style>
@@ -369,7 +507,7 @@ function getWebviewContent( items, content ) {
 	</head>
 	<body>
 	<script>
-		function myFunction() {
+		var myFunction = function(value,object) {
 			var checkedBoxes = document.querySelectorAll('input[name=mycheckboxes]:checked');
 			var classes = '';
 			for( var i=0; i<checkedBoxes.length; i++ ){
@@ -377,7 +515,7 @@ function getWebviewContent( items, content ) {
 			}
 			const vscode = acquireVsCodeApi();
 			vscode.postMessage({
-				command: 'submit',
+				command: value,
 				text: classes
 			})
 		}
@@ -387,7 +525,7 @@ function getWebviewContent( items, content ) {
 			${content}
 		</div>
 		<br/>
-		<button class="button button2" onclick="myFunction()">Submit</button>
+		<button class="button button2" data-arg1='classes' onclick="myFunction(\'${itemName}\',this)">Submit</button>
 	</body>
 	</html>`;
 }

@@ -10,7 +10,9 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:salesforce-testsuite-generator.createtestsuite"
+		"onCommand:salesforce-testsuite-generator.createtestsuite",
+		"onCommand:salesforce-testsuite-generator.runtestsuite",
+		"onCommand:salesforce-testsuite-generator.exporttestsuites"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -18,6 +20,14 @@
 			{
 				"command": "salesforce-testsuite-generator.createtestsuite",
 				"title": "TSM: Generate Test Suite."
+			},
+			{
+				"command": "salesforce-testsuite-generator.runtestsuite",
+				"title": "TSM: Run a Test Suite."
+			},
+			{
+				"command": "salesforce-testsuite-generator.exporttestsuites",
+				"title": "TSM: Export Test Suites."
 			}
 		]
 	},
