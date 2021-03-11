@@ -15,10 +15,10 @@
 
   
 
-- This tool provide following commands currently
-		- **TSM: Generate Test Suite.**
-		- **TSM: Run a Test Suite.**
-		- **TSM: Export Test Suites.**
+## Functions
+	- **TSM: Generate Test Suite.**
+	- **TSM: Run a Test Suite.**
+	- **TSM: Export Test Suites.**
 
 ## TSM: Generate Test Suite.
  **Generate new Test Suite by selecting the desired  Test Classes.**
