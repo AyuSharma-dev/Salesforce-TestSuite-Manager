@@ -5,7 +5,7 @@ import * as vscode from 'vscode';
 const { exec } = require( 'child_process' );
 const fs = require('fs') 
 
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context) {
 
 	let disposable = vscode.commands.registerCommand('salesforce-testsuite-generator.createtestsuite', async() => {
 		
@@ -14,14 +14,14 @@ export function activate(context: vscode.ExtensionContext) {
 		if( tsInput ){
 			
 			var testSuiteName = tsInput;
-			var items: String[] = [];
+			var items = [];
 			//let currentPanel: vscode.WebviewPanel | undefined = undefined;
 			let foo = exec("sfdx force:data:soql:query -q \"Select Name From ApexClass Where Name Like '%test%'\"",{
 				maxBuffer: 1024 * 1024 * 6,
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 			});
 
-			foo.stdout.on("data",(dataArg : any)=> {
+			foo.stdout.on("data",(dataArg)=> {
 				try{
 					items = items.concat( dataArg.split('\n') );
 				}
@@ -36,7 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
 				cancellable: false
 				}, () => {
 				var p = new Promise(resolve => {
-					foo.on('close', (data: any)=> {
+					foo.on('close', (data)=> {
 						resolve( true );
 					});
 				});
@@ -44,7 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
 			});
 
 			var dirPath = vscode.workspace.workspaceFolders[0].uri.fsPath+'\\force-app\\main\\default\\testSuites';
-			foo.on('close', (data: any)=> {
+			foo.on('close', (data)=> {
 				getFilteredData( items ).then( function( realData ) {
 					if( realData.length > 5 ){
 						try{
@@ -82,9 +82,9 @@ export function activate(context: vscode.ExtensionContext) {
 	
 }
 
-function createWebView( content, command:String, dirPath:String, testSuiteName:String ){
+function createWebView( content, command, dirPath, testSuiteName ){
 
-	let currentPanel: vscode.WebviewPanel | undefined = undefined;
+	let currentPanel = undefined;
 	var tabName, tabLabel;
 	if( command == 'submit_classes' ){
 		tabName = 'classselector';
@@ -121,7 +121,7 @@ function createWebView( content, command:String, dirPath:String, testSuiteName:S
 
 }
 
-function createAndDeployTS( selectedClasses:String[], dirPath:String, testSuiteName:String ){
+function createAndDeployTS( selectedClasses, dirPath, testSuiteName ){
 	vscode.window.withProgress({
 		location: vscode.ProgressLocation.Notification,
 		title: "Creating and Deploying your Test Suite.",
@@ -189,7 +189,7 @@ function getListOfElements( items ){
 	});
 }
 
-function createTestSuiteContent( selectedClasses:String[] ){
+function createTestSuiteContent( selectedClasses ){
 	var dataToReturn = '<?xml version="1.0" encoding="UTF-8"?>\n';
 	dataToReturn += '<ApexTestSuite xmlns="http://soap.sforce.com/2006/04/metadata">\n';
 	return new Promise((resolve, reject) => {
@@ -204,7 +204,7 @@ function createTestSuiteContent( selectedClasses:String[] ){
 
 }
 
-function deployTsToOrg( dir:String ){
+function deployTsToOrg( dir ){
 
 	return new Promise((resolve, reject) => {
 		setTimeout(() => {
@@ -214,7 +214,7 @@ function deployTsToOrg( dir:String ){
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 			});
 
-			foo.on('close', (Code: any)=> {
+			foo.on('close', (Code)=> {
 				resolve(Code);
 			});
 		},500);
@@ -229,7 +229,7 @@ function startTestSuiteRun( testSuiteName ){
 		title: "Running Test Suite.",
 		cancellable: false
 		}, () => {
-			var outputMsg:String = '';
+			var outputMsg = '';
 		var p = new Promise(resolve => {
 			runTestSuit( testSuiteName ).then( function( returnValues ) {
 				if( returnValues[0] == 0 ){
@@ -251,7 +251,7 @@ function startTestSuiteRun( testSuiteName ){
 
 }
 
-function runTestSuit(dir:String){
+function runTestSuit(dir){
 	return new Promise((resolve, reject) => {
 		setTimeout(() => {
 			var outPutRes = '';
@@ -261,11 +261,11 @@ function runTestSuit(dir:String){
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 			});
 
-			foo.stdout.on("data",(dataArg : any)=> {
+			foo.stdout.on("data",(dataArg )=> {
 				outPutRes += dataArg;
 			});
 
-			foo.on('close', (Code: any)=> {
+			foo.on('close', (Code)=> {
 				const dataToSend = [ Code,outPutRes ];
 				resolve( dataToSend );
 			});
@@ -273,8 +273,8 @@ function runTestSuit(dir:String){
 	});
 }
 
-function getAllTestSuiteNames( onlyGetNames:Boolean ){
-	let allTestSuites: vscode.QuickPickItem[] = [];
+function getAllTestSuiteNames( onlyGetNames ){
+	let allTestSuites = [];
 
 	return new Promise(resolve => {
 		let foo = exec("sfdx force:data:soql:query -q \"Select TestSuiteName From ApexTestSuite ORDER BY TestSuiteName\"",{
@@ -282,7 +282,7 @@ function getAllTestSuiteNames( onlyGetNames:Boolean ){
 			cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 		});
 
-		foo.stdout.on("data",(dataArg : any)=> {
+		foo.stdout.on("data",(dataArg )=> {
 			try{
 				allTestSuites = allTestSuites.concat( dataArg.split('\n') );
 			}
@@ -297,14 +297,14 @@ function getAllTestSuiteNames( onlyGetNames:Boolean ){
 			cancellable: false
 			}, () => {
 			var p = new Promise(resolve => {
-				foo.on('close', (data: any)=> {
+				foo.on('close', (data)=> {
 					resolve( true );
 				});
 			});
 			return p;
 		});
 
-		foo.on('close', (data: any)=> {
+		foo.on('close', (data)=> {
 			
 			getFilteredData( allTestSuites ).then(function ( realData ) {
 				return realData;
@@ -389,7 +389,7 @@ function retrieveSource( dir ){
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 			});
 
-			foo.on('close', (Code: any)=> {
+			foo.on('close', (Code)=> {
 				resolve(Code);
 			});
 		},500);

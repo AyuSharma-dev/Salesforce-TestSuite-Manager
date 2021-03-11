@@ -4,29 +4,29 @@
 	"description": "Create, Retrieve or Run you Test Suites with ease.",
 	"version": "0.0.1",
 	"author": {
-        "name": "Ayush Sharma"
-    },
-    "publisher": "AyuSharma-dev",
+		"name": "Ayush Sharma"
+	},
+	"publisher": "AyuSharma-dev",
 	"engines": {
 		"vscode": "^1.53.0"
 	},
 	"keywords": [
-        "salesforce",
-        "apex",
-        "testsuite",
-        "test",
-        "test suite"
-    ],
-    "categories": [
-        "Testing",
-        "Programming Languages",
-        "Debuggers"
-    ],
+		"salesforce",
+		"apex",
+		"testsuite",
+		"test",
+		"test suite"
+	],
+	"categories": [
+		"Testing",
+		"Programming Languages",
+		"Debuggers"
+	],
 	"icon": "Images/icon.png",
 	"galleryBanner": {
-        "color": "black",
-        "theme": "dark"
-    },
+		"color": "black",
+		"theme": "dark"
+	},
 	"activationEvents": [
 		"onCommand:salesforce-testsuite-generator.createtestsuite",
 		"onCommand:salesforce-testsuite-generator.runtestsuite",
@@ -71,6 +71,6 @@
 		"vscode-test": "^1.4.0"
 	},
 	"dependencies": {
-		"react-scripts": "^2.1.8"
+		"react-scripts": "^3.1.2"
 	}
 }
