@@ -16,9 +16,9 @@
   
 
 ## Functions
-	**TSM: Generate Test Suite.**
-	**TSM: Run a Test Suite.**
-	**TSM: Export Test Suites.**
+**TSM: Generate Test Suite.**
+**TSM: Run a Test Suite.**
+**TSM: Export Test Suites.**
 
 ## TSM: Generate Test Suite.
  **Generate new Test Suite by selecting the desired  Test Classes.**
@@ -51,8 +51,8 @@ Export desired Test Suites locally in your VS code project.
 
 ## Dependency:
 
-	**Salesforce SFDX**
-	**Salesforce CLI**
+**Salesforce SFDX**
+**Salesforce CLI**
   
 ---
 
