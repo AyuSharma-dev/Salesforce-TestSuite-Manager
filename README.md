@@ -49,8 +49,11 @@ Export desired Test Suites locally in your VS code project.
 
   
 
----
+## Dependency:
 
+	- **Salesforce SFDX**
+	- **Salesforce CLI**
   
+---
 
 **Enjoy!**
